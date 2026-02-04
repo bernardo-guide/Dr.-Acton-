@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detective Medicine: Diagnostic Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .action-btn { transition: all 0.2s; }
+        .action-btn:active { transform: scale(0.95); }
+        .clue-reveal { border-left: 4px solid #3B82F6; background-color: #EFF6FF; padding: 0.5rem; margin-top: 0.5rem; border-radius: 0 0.25rem 0.25rem 0; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-user-doctor text-2xl text-blue-400"></i>
+                <div>
+                    <h1 class="font-bold text-xl leading-tight">Detective Medicine</h1>
+                    <p class="text-xs text-slate-400">Diagnostic Training Unit</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider">Budget</p>
+                    <p class="font-bold text-xl text-green-400"><span id="score-display">100</span> IP</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider">Case</p>
+                    <p class="font-bold text-xl"><span id="case-display">1</span>/6</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="max-w-4xl mx-auto p-4 md:p-6 pb-24">
+        
+        <!-- Scenario Card -->
+        <div id="scenario-card" class="bg-white rounded-xl shadow-md p-6 mb-6 border-l-8 border-blue-500 fade-in">
+            <h2 class="text-lg font-bold text-slate-700 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-list"></i> Patient Scenario
+            </h2>
+            <p id="scenario-text" class="text-lg md:text-xl text-slate-800 leading-relaxed">
+                Loading case...
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Investigation Actions -->
+            <div class="md:col-span-1 space-y-4">
+                
+                <div class="bg-white rounded-xl shadow-sm p-4">
+                    <h3 class="font-bold text-slate-500 text-sm uppercase mb-3 border-b pb-2">Gather Evidence</h3>
+                    
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <button onclick="performAction('history')" id="btn-history" class="action-btn w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg flex justify-between items-center group">
+                            <div>
+                                <span class="font-bold block text-sm"><i class="fa-solid fa-comments mr-2"></i>Ask History</span>
+                                <span class="text-xs text-blue-400 group-hover:text-blue-600">Interview patient</span>
+                            </div>
+                            <span class="bg-blue-200 text-blue-800 text-xs font-bold px-2 py-1 rounded">-10 IP</span>
+                        </button>
+
+                        <button onclick="performAction('vitals')" id="btn-vitals" class="action-btn w-full text-left px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg flex justify-between items-center group">
+                            <div>
+                                <span class="font-bold block text-sm"><i class="fa-solid fa-heart-pulse mr-2"></i>Check Vitals</span>
+                                <span class="text-xs text-emerald-400 group-hover:text-emerald-600">Temp, HR, Breathing</span>
+                            </div>
+                            <span class="bg-emerald-200 text-emerald-800 text-xs font-bold px-2 py-1 rounded">-15 IP</span>
+                        </button>
+
+                        <button onclick="performAction('tests')" id="btn-tests" class="action-btn w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg flex justify-between items-center group">
+                            <div>
+                                <span class="font-bold block text-sm"><i class="fa-solid fa-microscope mr-2"></i>Specific Exam</span>
+                                <span class="text-xs text-purple-400 group-hover:text-purple-600">Swabs, Look closer</span>
+                            </div>
+                            <span class="bg-purple-200 text-purple-800 text-xs font-bold px-2 py-1 rounded">-25 IP</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reference Card -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs text-slate-500">
+                    <p class="font-bold mb-1"><i class="fa-solid fa-triangle-exclamation text-yellow-500"></i> Reminder:</p>
+                    <p>Don't just guess! Use your points to rule out dangerous conditions before deciding.</p>
+                </div>
+
+            </div>
+
+            <!-- Middle/Right: Evidence Log & Decision -->
+            <div class="md:col-span-2 space-y-6">
+                
+                <!-- Evidence Log -->
+                <div class="bg-white rounded-xl shadow-sm p-5 min-h-[200px]">
+                    <h3 class="font-bold text-slate-500 text-sm uppercase mb-3 flex justify-between">
+                        <span><i class="fa-solid fa-magnifying-glass mr-2"></i>Evidence Log</span>
+                        <span id="clue-count" class="bg-slate-100 px-2 rounded text-slate-400">0 clues</span>
+                    </h3>
+                    <div id="evidence-container" class="space-y-2 text-sm text-slate-600">
+                        <p id="empty-state" class="text-slate-400 italic text-center py-8">Select an action on the left to gather clues.</p>
+                        <!-- Clues injected here -->
+                    </div>
+                </div>
+
+                <!-- Diagnosis Panel -->
+                <div class="bg-slate-800 rounded-xl shadow-lg p-5 text-white">
+                    <h3 class="font-bold text-blue-300 text-sm uppercase mb-4 border-b border-slate-700 pb-2">
+                        <i class="fa-solid fa-user-check mr-2"></i>Final Diagnosis & Triage
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1 uppercase font-bold">Condition</label>
+                            <select id="diagnosis-select" class="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white focus:outline-none focus:border-blue-400">
+                                <option value="" disabled selected>Select Condition...</option>
+                                <option value="Common Cold">Common Cold</option>
+                                <option value="Influenza (Flu)">Influenza (Flu)</option>
+                                <option value="Dehydration">Dehydration</option>
+                                <option value="Asthma Flare">Asthma Flare</option>
+                                <option value="Seasonal Allergies">Seasonal Allergies</option>
+                                <option value="Strep Throat">Strep Throat</option>
+                                <option value="Food Poisoning">Food Poisoning</option>
+                                <option value="Mild Concussion">Mild Concussion</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1 uppercase font-bold">Triage Action</label>
+                            <select id="triage-select" class="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white focus:outline-none focus:border-blue-400">
+                                <option value="" disabled selected>Select Action...</option>
+                                <option value="Home Care">Home Care (Rest/Fluids)</option>
+                                <option value="Doctor Soon">See Doctor Soon (24-48hrs)</option>
+                                <option value="Urgent">Urgent / Emergency (Now)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="submitDiagnosis()" id="btn-submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg shadow transition-colors">
+                        Submit Diagnosis
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Feedback -->
+    <div id="feedback-modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 text-center transform transition-all scale-100">
+            <div id="feedback-icon" class="text-6xl mb-4"></div>
+            <h2 id="feedback-title" class="text-2xl font-bold mb-2">Result</h2>
+            <p id="feedback-message" class="text-slate-600 mb-6 leading-relaxed"></p>
+            
+            <div class="bg-slate-100 rounded p-4 mb-6 text-left">
+                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Correct Answer:</p>
+                <p id="correct-answer" class="font-bold text-slate-800"></p>
+                <p class="text-xs text-slate-500 uppercase font-bold mt-3 mb-1">Why?</p>
+                <p id="explanation-text" class="text-sm text-slate-700"></p>
+            </div>
+
+            <button onclick="nextCase()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-lg w-full">
+                Next Case <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME DATA (From the Detective Medicine Toolkit) ---
+        const cases = [
+            {
+                id: 1,
+                title: "The Field Day Fainter",
+                scenario: "Alex (13) was running the 400m dash. He says he feels 'spinning' and his head hurts. He is sitting on the grass.",
+                clues: {
+                    history: "\"I skipped breakfast and forgot my water bottle. I just wanted to win.\"",
+                    vitals: "Temp: 99.1°F (Normal) | HR: 110 bpm (Fast) | BP: 100/60 (Low)",
+                    tests: "Skin Check: Skin is dry and 'tents' slightly when pinched. Not sweaty despite running."
+                },
+                diagnosis: "Dehydration",
+                triage: "Home Care",
+                explanation: "High heart rate + dry skin + history of no water = Dehydration. It's not heat stroke (temp is normal) or a concussion (no head hit reported)."
+            },
+            {
+                id: 2,
+                title: "The Sudden Shiverer",
+                scenario: "Maya was fine at breakfast, but by 2nd period, she's wearing her winter coat in class and says her 'bones hurt'.",
+                clues: {
+                    history: "\"My whole body feels like I ran a marathon, but I didn't. I'm so tired.\"",
+                    vitals: "Temp: 102.4°F (High Fever) | HR: 95 bpm",
+                    tests: "Cough Check: Dry, occasional cough. Throat looks normal."
+                },
+                diagnosis: "Influenza (Flu)",
+                triage: "Doctor Soon",
+                explanation: "Sudden onset + High Fever + Body Aches ('bones hurt') are classic Flu signs. Cold is slower/milder. Strep doesn't usually cause cough."
+            },
+            {
+                id: 3,
+                title: "The Tight Chest",
+                scenario: "Leo is in PE. He is sitting on the bench, leaning forward with hands on knees. He looks scared.",
+                clues: {
+                    history: "\"Hard... to... breathe. Chest... tight.\"",
+                    vitals: "Breathing: 30 breaths/min (Fast) | O2 Sat: 92% (Low)",
+                    tests: "Lungs Listen: High-pitched whistling (wheezing) heard when he breathes out."
+                },
+                diagnosis: "Asthma Flare",
+                triage: "Urgent",
+                explanation: "Wheezing + Difficulty speaking + Fast breathing = Asthma Flare. This is Urgent because he is struggling to get air."
+            },
+            {
+                id: 4,
+                title: "The Throat Thorn",
+                scenario: "Sam woke up with a throat so sore it hurts to swallow water. He looks miserable.",
+                clues: {
+                    history: "\"It feels like swallowing glass. No cough, just pain.\"",
+                    vitals: "Temp: 101.5°F (Fever) | HR: 88 bpm",
+                    tests: "Throat Look: Tonsils are bright red with tiny white spots/patches."
+                },
+                diagnosis: "Strep Throat",
+                triage: "Doctor Soon",
+                explanation: "Severe throat pain + Fever + No cough + White spots = Classic Strep. Needs antibiotics (Doctor)."
+            },
+            {
+                id: 5,
+                title: "The Soccer Headache",
+                scenario: "Jordan collided with another player 20 minutes ago. Now Jordan says the sun is 'too bright' and feels nauseous.",
+                clues: {
+                    history: "\"I don't remember walking to the sideline. I feel foggy.\"",
+                    vitals: "Temp: 98.6°F (Normal) | Pupils: React slowly.",
+                    tests: "Balance Check: Wobbly when standing on one foot with eyes closed."
+                },
+                diagnosis: "Mild Concussion",
+                triage: "Urgent",
+                explanation: "Head hit + Memory loss + Light sensitivity + Balance issues = Concussion. Urgent evaluation needed to rule out brain bleed."
+            },
+            {
+                id: 6,
+                title: "The Spring Sneezer",
+                scenario: "Chloe’s nose has been running for three days. She has a 'tickle' in her throat but feels energetic enough to play.",
+                clues: {
+                    history: "\"It happens every year when the flowers bloom. My eyes itch so bad!\"",
+                    vitals: "Temp: 98.6°F (Perfectly Normal)",
+                    tests: "Face Check: Eyes are red and watery. Clear fluid from nose."
+                },
+                diagnosis: "Seasonal Allergies",
+                triage: "Home Care",
+                explanation: "Itchy eyes + Clear nose + No fever + History of seasonal issues = Allergies. Not contagious."
+            }
+        ];
+
+        // --- GAME STATE ---
+        let currentCaseIndex = 0;
+        let points = 100;
+        let revealedClues = { history: false, vitals: false, tests: false };
+
+        // --- DOM ELEMENTS ---
+        const scoreDisplay = document.getElementById('score-display');
+        const caseDisplay = document.getElementById('case-display');
+        const scenarioText = document.getElementById('scenario-text');
+        const evidenceContainer = document.getElementById('evidence-container');
+        const emptyState = document.getElementById('empty-state');
+        const scenarioCard = document.getElementById('scenario-card');
+        
+        // Modal Elements
+        const modal = document.getElementById('feedback-modal');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const correctAnswer = document.getElementById('correct-answer');
+        const explanationText = document.getElementById('explanation-text');
+
+        // --- FUNCTIONS ---
+
+        function initGame() {
+            loadCase(0);
+        }
+
+        function loadCase(index) {
+            currentCaseIndex = index;
+            const currentCase = cases[index];
+            
+            // Reset State
+            points = 100;
+            revealedClues = { history: false, vitals: false, tests: false };
+            
+            // Update UI
+            updateScore();
+            caseDisplay.innerText = index + 1;
+            scenarioText.innerText = currentCase.scenario;
+            
+            // Clear Evidence
+            evidenceContainer.innerHTML = '';
+            evidenceContainer.appendChild(emptyState);
+            emptyState.style.display = 'block';
+
+            // Reset Selects
+            document.getElementById('diagnosis-select').value = "";
+            document.getElementById('triage-select').value = "";
+
+            // Reset Buttons
+            resetButtons();
+
+            // Animation
+            scenarioCard.classList.remove('fade-in');
+            void scenarioCard.offsetWidth; // trigger reflow
+            scenarioCard.classList.add('fade-in');
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = points;
+            if (points < 30) scoreDisplay.classList.replace('text-green-400', 'text-red-500');
+            else scoreDisplay.classList.replace('text-red-500', 'text-green-400');
+        }
+
+        function performAction(type) {
+            const currentCase = cases[currentCaseIndex];
+            const costs = { history: 10, vitals: 15, tests: 25 };
+            const icons = { history: 'fa-comments', vitals: 'fa-heart-pulse', tests: 'fa-microscope' };
+            const titles = { history: 'Patient History', vitals: 'Vital Signs', tests: 'Exam Results' };
+
+            if (revealedClues[type]) return; // Already revealed
+
+            // Deduct points
+            points -= costs[type];
+            updateScore();
+            revealedClues[type] = true;
+
+            // Hide empty state
+            emptyState.style.display = 'none';
+
+            // Disable button visual
+            const btn = document.getElementById(`btn-${type}`);
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // Add clue to log
+            const clueDiv = document.createElement('div');
+            clueDiv.className = 'clue-reveal fade-in';
+            clueDiv.innerHTML = `
+                <div class="font-bold text-slate-700 text-xs uppercase mb-1">
+                    <i class="fa-solid ${icons[type]} mr-1"></i> ${titles[type]}
+                </div>
+                <div class="text-slate-800">${currentCase.clues[type]}</div>
+            `;
+            evidenceContainer.appendChild(clueDiv);
+        }
+
+        function resetButtons() {
+            ['history', 'vitals', 'tests'].forEach(type => {
+                const btn = document.getElementById(`btn-${type}`);
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+        }
+
+        function submitDiagnosis() {
+            const diag = document.getElementById('diagnosis-select').value;
+            const triage = document.getElementById('triage-select').value;
+
+            if (!diag || !triage) {
+                alert("Please select both a Condition and a Triage action.");
+                return;
+            }
+
+            const currentCase = cases[currentCaseIndex];
+            const isDiagCorrect = diag === currentCase.diagnosis;
+            
+            // Loose matching for Triage to be forgiving (Urgent vs Emergency)
+            const isTriageCorrect = currentCase.triage.includes(triage) || (triage === 'Urgent' && currentCase.triage.includes('Emergency'));
+
+            showFeedback(isDiagCorrect, isTriageCorrect, currentCase);
+        }
+
+        function showFeedback(diagCorrect, triageCorrect, currentCase) {
+            modal.classList.remove('hidden');
+            
+            // Populate Modal
+            correctAnswer.innerHTML = `${currentCase.diagnosis} <span class="text-slate-400 font-normal">(${currentCase.triage})</span>`;
+            explanationText.innerText = currentCase.explanation;
+
+            if (diagCorrect && triageCorrect) {
+                feedbackIcon.innerHTML = '🎉';
+                feedbackTitle.innerText = 'Excellent Work!';
+                feedbackTitle.className = 'text-2xl font-bold mb-2 text-green-600';
+                feedbackMessage.innerText = `You correctly identified the condition and the safety plan. You have ${points} IP remaining.`;
+            } else if (diagCorrect && !triageCorrect) {
+                feedbackIcon.innerHTML = '⚠️';
+                feedbackTitle.innerText = 'Right Diagnosis, Wrong Plan';
+                feedbackTitle.className = 'text-2xl font-bold mb-2 text-yellow-600';
+                feedbackMessage.innerText = `You knew it was ${currentCase.diagnosis}, but the triage action was unsafe.`;
+            } else {
+                feedbackIcon.innerHTML = '❌';
+                feedbackTitle.innerText = 'Incorrect Diagnosis';
+                feedbackTitle.className = 'text-2xl font-bold mb-2 text-red-600';
+                feedbackMessage.innerText = "The symptoms don't quite match your diagnosis.";
+            }
+        }
+
+        function nextCase() {
+            modal.classList.add('hidden');
+            if (currentCaseIndex < cases.length - 1) {
+                loadCase(currentCaseIndex + 1);
+            } else {
+                // Game Over
+                alert("You have completed all cases! Refresh to restart.");
+                location.reload();
+            }
+        }
+
+        // Start
+        initGame();
+
+    </script>
+</body>
+</html>
